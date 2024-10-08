@@ -126,3 +126,23 @@ rm(cl)
 rm(list = ls(pattern = "^cl"))
 gc()
 
+
+# Comparação entre folds --------------------------------------------------
+rf_results <- rf_model_random$resample %>%
+  summarise(
+    MeanAccuracy = mean(Accuracy),
+    SDAccuracy = sd(Accuracy)
+  )
+
+xgb_results <- xgb_model_random$resample %>%
+  summarise(
+    MeanAccuracy = mean(Accuracy),
+    SDAccuracy = sd(Accuracy)
+  )
+
+results_df <- data.frame(
+  Model = c("Random Forest", "XGBoost"),
+  MeanAccuracy = c(rf_results$MeanAccuracy, xgb_results$MeanAccuracy),
+  SDAccuracy = c(rf_results$SDAccuracy, xgb_results$SDAccuracy)
+)
+

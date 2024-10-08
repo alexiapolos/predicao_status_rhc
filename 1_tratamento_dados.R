@@ -12,6 +12,7 @@ library(officer)
 library(dplyr)
 library(forcats)
 library(stringr)
+library(vcd)
 
 dados <- foreign::read.dbf("rhc17.dbf") %>%
   dplyr::mutate(ID = row_number())
@@ -221,6 +222,23 @@ doc <- read_docx() %>%
   body_add_par("Tabela gerada automaticamente a partir do gtsummary.", style = "Normal")
 
 print(doc, target = "frequencias.docx")
+
+# Cramer ------------------------------------------------------------------
+
+calculate_cramers_v <- function(data, var) {
+  contingency_table <- table(data[[var]], data$status_doenca)
+  cramer_result <- assocstats(contingency_table)
+  return(cramer_result$cramer)
+}
+
+categorical_vars <- names(dados)[sapply(dados, is.factor) | sapply(dados, is.character)]
+categorical_vars <- categorical_vars[categorical_vars != "status_doenca"]
+
+cramers_v_results <- sapply(categorical_vars, calculate_cramers_v, data = dados)
+
+cramers_v_df <- data.frame(Variable = categorical_vars, CramersV = cramers_v_results)
+
+print(cramers_v_df)
 
 # Salvar ambiente ---------------------------------------------------------
 save.image("dados_tratados_05102024.Rdata")
