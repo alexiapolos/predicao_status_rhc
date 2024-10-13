@@ -13,7 +13,7 @@ dados_particao <- dados %>%
   dplyr::mutate(ID = row_number())
 
 # Primeira partição: 70% para treinamento, 30% para teste e validação
-particao_treino <- createDataPartition(dados_particao$status_doenca,
+particao_treino <- createDataPartition(dados_particao$status_doenca_final_trat,
                                        p = 0.8,
                                        list = FALSE)
 dados_treinamento <- dados_particao[particao_treino, ]
@@ -58,4 +58,4 @@ rm(list =
        )
      ))
 
-save.image("2_particao_dados_05102024.Rdata")
+save.image("2_particao_dados_09102024.Rdata")

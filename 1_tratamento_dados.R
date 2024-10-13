@@ -14,8 +14,14 @@ library(forcats)
 library(stringr)
 library(vcd)
 
-dados <- foreign::read.dbf("rhc17.dbf") %>%
-  dplyr::mutate(ID = row_number())
+dir_path <- "C:\\Users\\alexi\\OneDrive\\Documentos\\github_repo\\predicao_status_rhc\\DBFs"
+
+arquivos_dbf <- list.files(path = dir_path, pattern = "rhc(17|18|19|20|21)\\.dbf$", full.names = TRUE)
+
+dados <- lapply(arquivos_dbf, read.dbf) %>%   # Ler todos os arquivos .dbf listados
+  bind_rows() %>%                             # Unir todos os data frames em um único data frame
+  mutate(ID = row_number())                   # Adicionar a coluna ID com números sequenciais
+
 
 # Conversão e cálculo das datas  ---------------------------------------------
 dados <- dados %>%
@@ -77,7 +83,6 @@ dados <- dados %>%
   dplyr::mutate(
     # Ajustar e recodificar variável `tratamento_inicial` a partir dos primeiros caracteres de `PRITRATH`
     tratamento_inicial = as.factor(substr(as.character(PRITRATH), 1, 1)),
-    
     # Corrigir valores inválidos na variável `idade` e converter para numérico
     idade = dplyr::case_when(
       IDADE %in% c("999", "888", "159", "142", "140", "139", "138", "136", "134", 
@@ -166,19 +171,46 @@ dados <- dados %>%
       idade > 70 ~ "Mais de 70 anos",
       TRUE ~ NA_character_
     ),
-    
-    # Recodificar status da doença
-    status_doenca = dplyr::case_when(
-      ESTDFIMT %in% c("1", "2", "3", "4", "5") ~ "Vivo",
-      ESTDFIMT == "6" ~ "Óbito",
-      TRUE ~ NA_character_  # Definir como NA para todos os valores não especificados
+    hist_familiar = case_when(
+      HISTFAMC == "1" ~ "Sim",
+      HISTFAMC == "2" ~ "Não",
+      TRUE ~ NA_character_  # Atribui NA para todas as outras categorias não especificadas
     ),
     
+    # Recodificação da variável `tabagismo`
+    tabagismo = case_when(
+      TABAGISM == "1" ~ "Nunca tabagista",
+      TABAGISM == "2" ~ "Ex-tabagista",
+      TABAGISM == "3" ~ "Tabagista ativo",
+      TRUE ~ NA_character_  # Atribui NA para todas as outras categorias não especificadas
+    ),
+    
+    # Recodificação da variável `status_doenca_final_trat`
+    status_doenca_final_trat = case_when(
+      ESTDFIMT == "1" ~ "Sem evidência de doença/remissão completa",
+      ESTDFIMT == "2" ~ "Doença ativa",  # Monitoramento de doença
+      ESTDFIMT == "3" ~ "Doença ativa",  # Monitoramento de doença
+      ESTDFIMT == "4" ~ "Em progressão/paliativo",  # Monitoramento e tratamento de doença
+      ESTDFIMT == "5" ~ "Em progressão/paliativo",  # Monitoramento e tratamento de doença
+      ESTDFIMT == "6" ~ "Óbito",
+      TRUE ~ NA_character_  # Atribui NA para todas as outras categorias não especificadas
+    ),
+    etnia = case_when(
+      RACACOR == "1" ~ "Branca",
+      RACACOR %in% c("2", "4") ~ "Pardos e pretos",        # Combina os valores 2 e 4
+      RACACOR %in% c("3", "5") ~ "Amarelos e indígena",     # Combina os valores 3 e 5
+      TRUE ~ NA_character_  # Atribui NA para todos os outros valores não especificados
+    ), 
     # Conversão para fator das variáveis recategorizadas
-    regiao = as.factor(regiao),
     faixa_etaria = as.factor(faixa_etaria),
+    sexo = as.factor(sexo),
+    regiao = as.factor(regiao),
     estado_residencia = as.factor(estado_residencia),
-    tumores_agrupado = as.factor(tumores_agrupado)
+    tumores_agrupado = as.factor(tumores_agrupado),
+    tabagismo = as.factor(tabagismo),
+    hist_familiar = as.factor(hist_familiar), 
+    status_doenca_final_trat = as.factor (status_doenca_final_trat),
+    etnia = as.factor(etnia)
   ) %>%
   
   # Filtro de idade para manter apenas maiores de 30 anos
@@ -186,8 +218,8 @@ dados <- dados %>%
   
   # Selecionar colunas de interesse
   dplyr::select(
-    faixa_etaria, sexo, tipo_caso, estado_residencia, lei60_respeitou, tratamento_inicial, 
-    cacon_unacon, status_doenca, estadiamento, regiao, tumores_agrupado
+    faixa_etaria, sexo, tipo_caso, etnia,tabagismo, hist_familiar, estado_residencia, regiao, lei60_respeitou, tratamento_inicial, 
+    cacon_unacon, estadiamento, tumores_agrupado, status_doenca_final_trat
   ) %>%
   
   # Converter variáveis de texto restantes para fator
@@ -232,7 +264,7 @@ calculate_cramers_v <- function(data, var) {
 }
 
 categorical_vars <- names(dados)[sapply(dados, is.factor) | sapply(dados, is.character)]
-categorical_vars <- categorical_vars[categorical_vars != "status_doenca"]
+categorical_vars <- categorical_vars[categorical_vars != "status_doenca_final_trat"]
 
 cramers_v_results <- sapply(categorical_vars, calculate_cramers_v, data = dados)
 
@@ -241,4 +273,4 @@ cramers_v_df <- data.frame(Variable = categorical_vars, CramersV = cramers_v_res
 print(cramers_v_df)
 
 # Salvar ambiente ---------------------------------------------------------
-save.image("dados_tratados_05102024.Rdata")
+save.image("dados_tratados_09102024.Rdata")

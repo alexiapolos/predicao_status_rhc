@@ -8,31 +8,40 @@ library(flextable)
 library(gtsummary)
 library(officer)
 
-
 # 2. Modelo explicativo SHAP ----------------------------------------------
 explainer_rf <- DALEX::explain(
-  model = rf_model_rfe,
-  data = dados_treinamento[, -which(names(dados_treinamento) == "status_doenca")],
-  y = as.factor(dados_treinamento$status_doenca)
+  model = xgb_model_random,
+  data = dados_treinamento[, -which(names(dados_treinamento) == "status_doenca_final_trat")],  # Dados de treino sem a coluna alvo
+  y = dados_treinamento$status_doenca_final_trat  # Variável alvo do conjunto de treino
 )
 
-save.image("rf_rfe.Rdata")
 # 3. Extrair SHAP values de variaveis + categorias ------------------------
-shap_values_rf <- predict_parts(explainer_rf, new_observation = dados_teste, type = "shap")
+shap_values_xg <- predict_parts(explainer_rf, new_observation = dados_teste, type = "shap")
 
-write.csv(shap_values_rf, "shap_cat_rf_rfe.csv")
+write.csv(shap_values_rf, "shap_cat_xg.csv")
 
+# Salvando o gráfico com mais espaço e resoluções melhores
 png(
-  filename = 'shap_values_rf_plot_rfe.png',
-  width = 1920,
-  height = 1080,
-  res = 300
+  filename = 'shap_values__xg.png',
+  width = 4500,  # Aumenta a largura para melhor proporção
+  height = 3000,  # Altura ajustada para manter o gráfico mais espaçoso
+  res = 300  # Mantém a alta resolução para maior nitidez
 )
-plot(shap_values_rf,
-     main = "SHAP Values - RF RFE",
-     col = "#4e6d9a",
-     lwd = 2)
+
+# Criando o gráfico ajustado com novas cores e texto preto
+plot(
+  shap_values_xg,
+  main = "SHAP Values - XG",
+  col = c("#FF69B4", "#4682B4"),  # Rosa (#FF69B4) para negativo e azul (#4682B4) para positivo
+  lwd = 2,
+  font.main = 2,  # Negrito no título
+  cex.main = 1.8,  # Aumenta o tamanho do título
+  col.main = "black"  # Título em preto
+)
+
+# Finalizando o salvamento do gráfico
 dev.off()
+
 
 
 # 4. Gerar tabela de importância de variáveis + categorias  ----------------
@@ -40,7 +49,7 @@ shap_df <- shap_values_rf %>%
   as.data.frame() %>%
   select(variable, contribution) %>%
   group_by(variable) %>%
-  summarise(Mean_Contribution = mean(contribution)) %>%
+  summarise(Mean_Contribution = mean(abs(contribution))) %>%  # Média do valor absoluto da contribuição
   arrange(desc(Mean_Contribution))
 
 shap_table <- flextable(shap_df) %>%
@@ -52,7 +61,7 @@ doc <- read_docx() %>%
   body_add_flextable(shap_table) %>%
   body_add_par("Tabela gerada automaticamente com valores SHAP.", style = "Normal")
 
-print(doc, target = "shapley_importance.docx")
+print(doc, target = "shapley_importance_xg.docx")
 
 
 # 5. Plotar contribuição média das variáveis ------------------------------
@@ -68,7 +77,7 @@ shap_plot <- ggplot(shap_df, aes(x = reorder(variable, Mean_Contribution), y = M
     fontface = "bold"
   ) +  
   coord_flip() +  #
-  labs(title = "Valores SHAP - Random Forest - RFE", x = "Variáveis + categorias", y = "Valor SHAP") +
+  labs(title = "XGB ", x = "Variáveis + categorias", y = "Valor SHAP") +
   theme_minimal(base_size = 15) +
   theme(
     plot.title = element_text(hjust = 0.5, size = 20, face = "bold"),
@@ -85,7 +94,7 @@ shap_plot <- ggplot(shap_df, aes(x = reorder(variable, Mean_Contribution), y = M
 
 
 ggsave(
-  filename = "impacto_variaveis_shap_rf_rfe.png",
+  filename = "impacto_variaveis_shap_rf.png",
   plot = shap_plot,
   width = 10,
   height = 7,
@@ -107,7 +116,7 @@ aggregate_shap <- function(shap_values) {
 
 shap_aggregated <- aggregate_shap(shap_values_rf)
 
-write.xlsx (shap_aggregated, "rf_shapley_var.csv", rownames = TRUE)
+write.xlsx (shap_aggregated, "xg_shapley_var.csv", rownames = TRUE)
 
 plot <- ggplot(shap_aggregated,
                aes(
@@ -120,7 +129,7 @@ plot <- ggplot(shap_aggregated,
              linetype = "dashed",
              color = "black") +
   labs(
-    title = "Random Forest - RFE",
+    title = "Random Forest",
     x = "Valor SHAP",
     y = "Variável Principal",
     color = "Média do Valor da Contribuição"
@@ -130,7 +139,7 @@ plot <- ggplot(shap_aggregated,
         axis.title.y = element_text(vjust = 0.5))
 
 ggsave(
-  filename = "impacto_variaveis_modelo_rf_rfe.png",
+  filename = "impacto_variaveis_modelo_rf.png",
   plot = plot,
   width = 10,
   height = 7,
