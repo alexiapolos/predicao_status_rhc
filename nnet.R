@@ -1,42 +1,33 @@
-
 # esboço redes neurais ----------------------------------------------------
-# Carregar pacotes necessários
 library(caret)
 library(dplyr)
 library(nnet)
 
-# Exemplo de um conjunto de dados categórico chamado 'dados'
-# Vamos supor que o nome do data frame seja 'dados'
-
-dados = dados_filtrados_sem_na
-
-# Transformar variáveis categóricas usando dummy variables (one-hot encoding)
 dados_dummy <- dummyVars(" ~ .", data = dados) %>%
   predict(dados) %>%
   as.data.frame()
 
-
-dados = dados_dummy
-
-# Definir semente para reprodutibilidade
 set.seed(659)
 
-# Adicionar identificador
-dados_particao <- dados %>%
+dados_particao <- dados_dummy %>%
   dplyr::mutate(ID = row_number())
 
-# Primeira partição: 70% para treinamento, 30% para teste e validação
-particao_treino <- createDataPartition(dados_particao$status_doenca_final_trat,
+particao <- createDataPartition(dados_particao$status_doenca_final_trat.Óbito,
                                        p = 0.8,
                                        list = FALSE)
-dados_treinamento <- dados_particao[particao_treino, ]
 
-dados_teste <- dados_particao[-particao_treino, ]
+dados_treinamento <- dados_particao[particao, ]
 
-# Treinamento do modelo com o pacote nnet
+dados_teste <- dados_particao[-particao, ]
+
+library(doParallel)
+cl <- makeCluster(detectCores() - 1) 
+
+registerDoParallel(cl)
+
 set.seed(123)
 modelo_rede_neural <- nnet(
-  status_doenca ~ .,               # Fórmula do modelo
+  status_doenca_final_trat.Óbito ~ .,               # Fórmula do modelo
   data = dados_treinamento,        # Conjunto de treinamento
   size = 5,                        # Número de neurônios na camada oculta
   rang = 0.1,                      # Inicialização dos pesos- testar 0,5 e 1
@@ -47,10 +38,32 @@ modelo_rede_neural <- nnet(
 # Visualizar o modelo treinado
 print(modelo_rede_neural)
 
-predicoes <- predict(modelo_rede_neural, x_test, type = "class")
+predicoes_prob <- predict(modelo_rede_neural, dados_teste, type = "raw")
+
+predicoes <- ifelse(predicoes_prob > 0.5, 1, 0)
+
+head(predicoes)
 
 # Calcular a acurácia no conjunto de teste
-acuracia <- caret::confusionMatrix(predicoes, y_test)$overall["Accuracy"]
+# Converter ambas as variáveis (predições e classes reais) para fatores com os mesmos níveis
+levels <- union(levels(as.factor(predicoes)), levels(as.factor(classes_reais)))
+
+predicoes_factor <- factor(predicoes, levels = levels)
+classes_reais_factor <- factor(classes_reais, levels = levels)
+
+# Calcular a matriz de confusão
+matriz_confusao <- caret::confusionMatrix(predicoes_factor, classes_reais_factor)
+
+# Visualizar a matriz de confusão
+print(matriz_confusao)
 
 # Exibir a acurácia
 print(paste("Acurácia do modelo no conjunto de teste: ", round(acuracia * 100, 2), "%"))
+
+# Finalizar e desregistrar o cluster paralelo
+stopCluster(cl)
+registerDoSEQ()
+
+rm(cl)
+rm(list = ls(pattern = "^cl"))
+gc()
