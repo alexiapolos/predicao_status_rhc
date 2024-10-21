@@ -1,4 +1,6 @@
 */resultados
-*Rdata
-*Rhistory
-*Renviron
+*.Rdata
+*.Rhistory
+*.Renviron
+*.docx
+*.pdf
