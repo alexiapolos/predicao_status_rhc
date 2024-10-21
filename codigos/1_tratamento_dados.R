@@ -18,10 +18,9 @@ dir_path <- "C:\\Users\\alexi\\OneDrive\\Documentos\\github_repo\\predicao_statu
 
 arquivos_dbf <- list.files(path = dir_path, pattern = "rhc(17|18|19|20|21)\\.dbf$", full.names = TRUE)
 
-dados <- lapply(arquivos_dbf, read.dbf) %>%   # Ler todos os arquivos .dbf listados
-  bind_rows() %>%                             # Unir todos os data frames em um único data frame
-  mutate(ID = row_number())                   # Adicionar a coluna ID com números sequenciais
-
+dados <- lapply(arquivos_dbf, read.dbf) %>%   
+  bind_rows() %>%                             
+  mutate(ID = row_number())                   #
 
 # Conversão e cálculo das datas  ---------------------------------------------
 dados <- dados %>%
@@ -52,6 +51,7 @@ CNES <- read_excel("hospitais-habilitados-em-oncologia-alta-complexidade.xlsx") 
   )
 
 dados <- left_join(dados, CNES, by = "CNES")
+
 # CID-O -------------------------------------------------------------------
 CID_O_topo <- read_excel("CID_O.xlsx", sheet = 1) %>%
   dplyr::select(CID_O = "Código_CID-OEd3", topografia = "Descrição_CID-OEd3")
@@ -79,7 +79,6 @@ dados <- dados %>%
       topografia_loc_primaria_3d != "Pele"
   ) %>%
   
-  # Aplicar transformações e recodificações
   dplyr::mutate(
     # Ajustar e recodificar variável `tratamento_inicial` a partir dos primeiros caracteres de `PRITRATH`
     tratamento_inicial = as.factor(substr(as.character(PRITRATH), 1, 1)),
@@ -93,21 +92,21 @@ dados <- dados %>%
       TRUE ~ as.numeric(IDADE)
     ),
     
-    # Recodificar estadiamento usando `case_when`
+    # Recodificar estadiamento 
     estadiamento = dplyr::case_when(
       ESTADIAM %in% c("0", "00", "0A") ~ "0",
       ESTADIAM %in% c("01", "1", "10", "11", "12", "14", "1A", "1B", "1C") ~ "I",
       ESTADIAM %in% c("02", "2", "20", "21", "23", "28", "24", "2A", "2B", "2C", "2D") ~ "II",
       ESTADIAM %in% c("30", "33", "39", "03", "34", "3", "3A", "3B", "3C", "3D") ~ "III",
       ESTADIAM %in% c("04", "4", "40", "41", "43", "44", "4A", "4B", "4C", "4D", "49") ~ "IV",
-      TRUE ~ NA_character_  # Definir como NA para todos os valores não especificados
+      TRUE ~ NA_character_  
     ),
     
     # Recodificar tipo de caso
     tipo_caso = dplyr::case_when(
       TPCASO == "1" ~ "Analítico",
       TPCASO == "2" ~ "Não analítico",
-      TRUE ~ NA_character_  # Definir como NA para todos os valores não especificados
+      TRUE ~ NA_character_  
     ),
     
     # Recodificação de variáveis categóricas
@@ -158,8 +157,8 @@ dados <- dados %>%
       tratamento_inicial == "2" ~ "Cirurgia",
       tratamento_inicial == "3" ~ "Radioterapia",
       tratamento_inicial == "4" ~ "Quimioterapia",
-      tratamento_inicial %in% c("5", "6", "7", "8") ~ "Outro",  # Agrupar valores 5, 6 e 8 como "Outro"
-      TRUE ~ NA_character_  # Definir como NA para todos os valores não especificados
+      tratamento_inicial %in% c("5", "6", "7", "8") ~ "Outro",  
+      TRUE ~ NA_character_  
     ),
     
     # Categorização da faixa etária
@@ -174,7 +173,7 @@ dados <- dados %>%
     hist_familiar = case_when(
       HISTFAMC == "1" ~ "Sim",
       HISTFAMC == "2" ~ "Não",
-      TRUE ~ NA_character_  # Atribui NA para todas as outras categorias não especificadas
+      TRUE ~ NA_character_  
     ),
     
     # Recodificação da variável `tabagismo`
@@ -182,24 +181,24 @@ dados <- dados %>%
       TABAGISM == "1" ~ "Nunca tabagista",
       TABAGISM == "2" ~ "Ex-tabagista",
       TABAGISM == "3" ~ "Tabagista ativo",
-      TRUE ~ NA_character_  # Atribui NA para todas as outras categorias não especificadas
+      TRUE ~ NA_character_  
     ),
     
     # Recodificação da variável `status_doenca_final_trat`
     status_doenca_final_trat = case_when(
       ESTDFIMT == "1" ~ "Sem evidência de doença/remissão completa",
-      ESTDFIMT == "2" ~ "Doença ativa",  # Monitoramento de doença
-      ESTDFIMT == "3" ~ "Doença ativa",  # Monitoramento de doença
-      ESTDFIMT == "4" ~ "Em progressão/paliativo",  # Monitoramento e tratamento de doença
-      ESTDFIMT == "5" ~ "Em progressão/paliativo",  # Monitoramento e tratamento de doença
+      ESTDFIMT == "2" ~ "Doença ativa",  
+      ESTDFIMT == "3" ~ "Doença ativa",  
+      ESTDFIMT == "4" ~ "Em progressão/paliativo",  
+      ESTDFIMT == "5" ~ "Em progressão/paliativo",  
       ESTDFIMT == "6" ~ "Óbito",
-      TRUE ~ NA_character_  # Atribui NA para todas as outras categorias não especificadas
+      TRUE ~ NA_character_
     ),
     etnia = case_when(
       RACACOR == "1" ~ "Branca",
-      RACACOR %in% c("2", "4") ~ "Pardos e pretos",        # Combina os valores 2 e 4
-      RACACOR %in% c("3", "5") ~ "Amarelos e indígena",     # Combina os valores 3 e 5
-      TRUE ~ NA_character_  # Atribui NA para todos os outros valores não especificados
+      RACACOR %in% c("2", "4") ~ "Pardos e pretos",       
+      RACACOR %in% c("3", "5") ~ "Amarelos e indígena",    
+      TRUE ~ NA_character_  
     ), 
     # Conversão para fator das variáveis recategorizadas
     faixa_etaria = as.factor(faixa_etaria),
@@ -215,14 +214,10 @@ dados <- dados %>%
   
   # Filtro de idade para manter apenas maiores de 30 anos
   dplyr::filter(idade > 30) %>%
-  
-  # Selecionar colunas de interesse
   dplyr::select(
     faixa_etaria, sexo, tipo_caso, etnia,tabagismo, hist_familiar, estado_residencia, regiao, lei60_respeitou, tratamento_inicial, 
     cacon_unacon, estadiamento, tumores_agrupado, status_doenca_final_trat
   ) %>%
-  
-  # Converter variáveis de texto restantes para fator
   dplyr::mutate(across(where(is.character), as.factor))
 
 # Exploratório do banco de dados ------------------------------------------
@@ -245,9 +240,9 @@ frequencias =
 frequencias_df <- as.data.frame(frequencias$table_body)
 
 frequencias_ft <- regulartable(frequencias_df) %>%
-  theme_vanilla() %>%  # Aplicar um tema padrão
-  autofit() %>%        # Ajustar a largura das colunas automaticamente
-  set_caption("Tabela de Frequências")  # Título da tabela
+  theme_vanilla() %>%  
+  autofit() %>%       
+  set_caption("Tabela de Frequências") 
 
 doc <- read_docx() %>%
   body_add_flextable(frequencias_ft) %>%
@@ -256,7 +251,6 @@ doc <- read_docx() %>%
 print(doc, target = "frequencias.docx")
 
 # Cramer ------------------------------------------------------------------
-
 calculate_cramers_v <- function(data, var) {
   contingency_table <- table(data[[var]], data$status_doenca)
   cramer_result <- assocstats(contingency_table)
@@ -273,4 +267,4 @@ cramers_v_df <- data.frame(Variable = categorical_vars, CramersV = cramers_v_res
 print(cramers_v_df)
 
 # Salvar ambiente ---------------------------------------------------------
-save.image("dados_tratados_09102024.Rdata")
+save.image("dados_tratados.Rdata")
